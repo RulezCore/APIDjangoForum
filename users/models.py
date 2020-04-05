@@ -5,20 +5,30 @@ from django.db.models.signals import post_save
 from PIL import Image
 from io import BytesIO
 from django.core.files.uploadedfile import InMemoryUploadedFile
-
+from django.core.exceptions import ValidationError
 import sys
 
 # Create your models here.
 class Profile(models.Model):
+    # Validators
+    def validate_img_size(value):
+        filesize = value.size
+        
+        if filesize > 2*1024*1024:
+            raise ValidationError('Tamaño maximo de imagen de 2MB')
+        else:
+            return value
+    
+    # Campos de base de datos
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     bio = models.TextField(max_length=500, blank=True)
     birth_date = models.DateField(null=True, blank=True)
-    profilePic = models.ImageField(upload_to='profile_pics', blank=True, null=True)
+    profilePic = models.ImageField(upload_to='profile_pics', validators=[validate_img_size], blank=True, null=True)
 
     def compressImage(self, profilePic):
         imageTemproary = Image.open(profilePic)
         outputIoStream = BytesIO()
-        imageTemproaryResized = imageTemproary.resize(500,500)
+        # imageTemproaryResized = imageTemproary.resize(500,500)
         imageTemproary.save(outputIoStream , format='JPEG', quality=60)
         outputIoStream.seek(0)
         profilePic = InMemoryUploadedFile(outputIoStream,'ImageField', "%s.jpg" % profilePic.name.split('.')[0], 'image/jpeg', sys.getsizeof(outputIoStream), None)
